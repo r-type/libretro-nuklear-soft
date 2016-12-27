@@ -13,18 +13,19 @@
 #ifndef NK_RSDL_H_
 #define NK_RSDL_H_
 
-#include "SDL_wrapper.h"
+// RSDL_surface/RSDL_maprgba (implementation from RSDL_wrapper)
+#include "RSDL_wrapper.h"
 
-typedef struct nk_sdl_Font nk_sdl_Font;
+typedef struct nk_retro_Font nk_retro_Font;
 
-NK_API struct nk_context*   nk_sdl_init(nk_sdl_Font *font,RSDL_Surface *screen_surface ,unsigned int width, unsigned int height);
-NK_API void                 nk_sdl_handle_event(int *evt);
-NK_API void                 nk_sdl_render(struct nk_color clear);
-NK_API void                 nk_sdl_shutdown(void);
+NK_API struct nk_context*   nk_retro_init(nk_retro_Font *font,RSDL_Surface *screen_surface ,unsigned int width, unsigned int height);
+NK_API void                 nk_retro_handle_event(int *evt);
+NK_API void                 nk_retro_render(struct nk_color clear);
+NK_API void                 nk_retro_shutdown(void);
 
-NK_API nk_sdl_Font* nk_sdlfont_create(const char *name, int size);
-NK_API void nk_sdlfont_del(nk_sdl_Font *font);
-NK_API void nk_sdl_set_font(nk_sdl_Font *font);
+NK_API nk_retro_Font* nk_retrofont_create(const char *name, int size);
+NK_API void nk_retrofont_del(nk_retro_Font *font);
+NK_API void nk_retro_set_font(nk_retro_Font *font);
 #endif
 /*
  * ==============================================================
@@ -37,9 +38,7 @@ NK_API void nk_sdl_set_font(nk_sdl_Font *font);
 
 #include <string.h>
 
-// RSDL_surface/RSDL_maprgba (implementation from RSDL_wrapper)
-#include "SDL_wrapper.h"
-//  graphics primitives taken from RSDL_gfxPrimitives ( minimal implementation for use with RSDL_wrapper)
+// graphics primitives taken from SDL_gfxPrimitives ( minimal implementation for use with RSDL_wrapper)
 #include "SDL_gfxPrimitives.h"
 
 #ifndef MAX
@@ -50,13 +49,13 @@ NK_API void nk_sdl_set_font(nk_sdl_Font *font);
 #define NK_RSDL_MAX_POINTS 128
 #endif
 
-struct nk_sdl_Font {
+struct nk_retro_Font {
     int width;
     int height;
     struct nk_user_font handle;
 };
 
-static struct nk_sdl {
+static struct nk_retro {
     RSDL_Surface *screen_surface;
     unsigned int width;
     unsigned int height;
@@ -66,7 +65,7 @@ static struct nk_sdl {
 static RSDL_Rect RSDL_clip_rect;
 
 static void
-nk_sdl_scissor(RSDL_Surface *surface, float x, float y, float w, float h)
+nk_retro_scissor(RSDL_Surface *surface, float x, float y, float w, float h)
 {
     RSDL_clip_rect.x = x;
     RSDL_clip_rect.y = y;
@@ -76,14 +75,14 @@ nk_sdl_scissor(RSDL_Surface *surface, float x, float y, float w, float h)
 }
 
 static void
-nk_sdl_stroke_line(RSDL_Surface *surface, short x0, short y0, short x1,
+nk_retro_stroke_line(RSDL_Surface *surface, short x0, short y0, short x1,
     short y1, unsigned int line_thickness, struct nk_color col)
 {
     thickLineRGBA(surface, x0, y0, x1, y1, line_thickness, col.r, col.g, col.b, col.a);
 }
 
 static void
-nk_sdl_stroke_rect(RSDL_Surface *surface, short x, short y, unsigned short w,
+nk_retro_stroke_rect(RSDL_Surface *surface, short x, short y, unsigned short w,
     unsigned short h, unsigned short r, unsigned short line_thickness, struct nk_color col)
 {
     /* Note: thickness is not used by default */
@@ -95,7 +94,7 @@ nk_sdl_stroke_rect(RSDL_Surface *surface, short x, short y, unsigned short w,
 }
 
 static void
-nk_sdl_fill_rect(RSDL_Surface *surface, short x, short y, unsigned short w,
+nk_retro_fill_rect(RSDL_Surface *surface, short x, short y, unsigned short w,
     unsigned short h, unsigned short r, struct nk_color col)
 {
     if (r == 0) {
@@ -106,13 +105,13 @@ nk_sdl_fill_rect(RSDL_Surface *surface, short x, short y, unsigned short w,
 }
 
 static void 
-nk_sdl_fill_triangle(RSDL_Surface *surface, short x0, short y0, short x1, short y1, short x2, short y2, struct nk_color col)
+nk_retro_fill_triangle(RSDL_Surface *surface, short x0, short y0, short x1, short y1, short x2, short y2, struct nk_color col)
 {
     filledTrigonRGBA(surface, x0, y0, x1, y1, x2, y2, col.r, col.g, col.b, col.a);
 }
 
 static void
-nk_sdl_stroke_triangle(RSDL_Surface *surface, short x0, short y0, short x1,
+nk_retro_stroke_triangle(RSDL_Surface *surface, short x0, short y0, short x1,
     short y1, short x2, short y2, unsigned short line_thickness, struct nk_color col)
 {
     /* Note: thickness is not used by default */
@@ -120,7 +119,7 @@ nk_sdl_stroke_triangle(RSDL_Surface *surface, short x0, short y0, short x1,
 }
 
 static void
-nk_sdl_fill_polygon(RSDL_Surface *surface, const struct nk_vec2i *pnts, int count, struct nk_color col)
+nk_retro_fill_polygon(RSDL_Surface *surface, const struct nk_vec2i *pnts, int count, struct nk_color col)
 {
     Sint16 p_x[NK_RSDL_MAX_POINTS];
     Sint16 p_y[NK_RSDL_MAX_POINTS];
@@ -133,7 +132,7 @@ nk_sdl_fill_polygon(RSDL_Surface *surface, const struct nk_vec2i *pnts, int coun
 }
 
 static void
-nk_sdl_stroke_polygon(RSDL_Surface *surface, const struct nk_vec2i *pnts, int count,
+nk_retro_stroke_polygon(RSDL_Surface *surface, const struct nk_vec2i *pnts, int count,
     unsigned short line_thickness, struct nk_color col)
 {
     /* Note: thickness is not used by default */
@@ -148,7 +147,7 @@ nk_sdl_stroke_polygon(RSDL_Surface *surface, const struct nk_vec2i *pnts, int co
 }
 
 static void
-nk_sdl_stroke_polyline(RSDL_Surface *surface, const struct nk_vec2i *pnts,
+nk_retro_stroke_polyline(RSDL_Surface *surface, const struct nk_vec2i *pnts,
     int count, unsigned short line_thickness, struct nk_color col)
 {
     int x0, y0, x1, y1;
@@ -171,14 +170,14 @@ nk_sdl_stroke_polyline(RSDL_Surface *surface, const struct nk_vec2i *pnts,
 }
 
 static void
-nk_sdl_fill_circle(RSDL_Surface *surface, short x, short y, unsigned short w,
+nk_retro_fill_circle(RSDL_Surface *surface, short x, short y, unsigned short w,
     unsigned short h, struct nk_color col)
 {
     filledEllipseRGBA(surface,  x + w /2, y + h /2, w / 2, h / 2, col.r, col.g, col.b, col.a); 
 }
 
 static void
-nk_sdl_stroke_circle(RSDL_Surface *surface, short x, short y, unsigned short w,
+nk_retro_stroke_circle(RSDL_Surface *surface, short x, short y, unsigned short w,
     unsigned short h, unsigned short line_thickness, struct nk_color col)
 {
     /* Note: thickness is not used by default */
@@ -186,7 +185,7 @@ nk_sdl_stroke_circle(RSDL_Surface *surface, short x, short y, unsigned short w,
 }
 
 static void
-nk_sdl_stroke_curve(RSDL_Surface *surface, struct nk_vec2i p1,
+nk_retro_stroke_curve(RSDL_Surface *surface, struct nk_vec2i p1,
     struct nk_vec2i p2, struct nk_vec2i p3, struct nk_vec2i p4, unsigned int num_segments,
     unsigned short line_thickness, struct nk_color col)
 {
@@ -205,17 +204,17 @@ nk_sdl_stroke_curve(RSDL_Surface *surface, struct nk_vec2i p1,
         float w4 = t * t *t;
         float x = w1 * p1.x + w2 * p2.x + w3 * p3.x + w4 * p4.x;
         float y = w1 * p1.y + w2 * p2.y + w3 * p3.y + w4 * p4.y;
-        nk_sdl_stroke_line(surface, last.x, last.y, (short)x, (short)y, line_thickness, col);
+        nk_retro_stroke_line(surface, last.x, last.y, (short)x, (short)y, line_thickness, col);
         last.x = (short)x; last.y = (short)y;
     }
 }
 
 /*static*/ void
-nk_sdl_draw_text(RSDL_Surface *surface, short x, short y, unsigned short w, unsigned short h,
-    const char *text, int len, nk_sdl_Font *font, struct nk_color cbg, struct nk_color cfg)
+nk_retro_draw_text(RSDL_Surface *surface, short x, short y, unsigned short w, unsigned short h,
+    const char *text, int len, nk_retro_Font *font, struct nk_color cbg, struct nk_color cfg)
 {
     int i;
-    nk_sdl_fill_rect(surface, x, y, len * font->width, font->height, 0, cbg);
+    nk_retro_fill_rect(surface, x, y, len * font->width, font->height, 0, cbg);
 
     for (i = 0; i < len; i++) {
         //characterRGBA(surface, x, y, text[i], cfg.r, cfg.g, cfg.b, cfg.a);
@@ -249,7 +248,7 @@ interpolate_color(struct nk_color c1, struct nk_color c2, struct nk_color *resul
 }
 
 static void
-nk_sdl_fill_rect_multi_color(RSDL_Surface *surface, short x, short y, unsigned short w, unsigned short h,
+nk_retro_fill_rect_multi_color(RSDL_Surface *surface, short x, short y, unsigned short w, unsigned short h,
     struct nk_color left, struct nk_color top,  struct nk_color right, struct nk_color bottom)
 {
     struct nk_color X1, X2, Y;
@@ -269,23 +268,23 @@ nk_sdl_fill_rect_multi_color(RSDL_Surface *surface, short x, short y, unsigned s
 }
 
 static void
-nk_sdl_clear(RSDL_Surface *surface, struct nk_color col)
+nk_retro_clear(RSDL_Surface *surface, struct nk_color col)
 {
-    nk_sdl_fill_rect(surface, 0, 0, surface->w, surface->h, 0, col);
+    nk_retro_fill_rect(surface, 0, 0, surface->w, surface->h, 0, col);
 }
 
 static void
-nk_sdl_blit(RSDL_Surface *surface)
+nk_retro_blit(RSDL_Surface *surface)
 {
 }
 
 NK_API void
-nk_sdl_render(struct nk_color clear)
+nk_retro_render(struct nk_color clear)
 {
     const struct nk_command *cmd;
 
     RSDL_Surface *screen_surface = sdl.screen_surface;
-    nk_sdl_clear(screen_surface, clear);
+    nk_retro_clear(screen_surface, clear);
 
     nk_foreach(cmd, &sdl.ctx)
     {
@@ -293,67 +292,67 @@ nk_sdl_render(struct nk_color clear)
         case NK_COMMAND_NOP: break;
         case NK_COMMAND_SCISSOR: {
             const struct nk_command_scissor *s =(const struct nk_command_scissor*)cmd;
-            nk_sdl_scissor(screen_surface, s->x, s->y, s->w, s->h);
+            nk_retro_scissor(screen_surface, s->x, s->y, s->w, s->h);
         } break;
         case NK_COMMAND_LINE: {
             const struct nk_command_line *l = (const struct nk_command_line *)cmd;
-            nk_sdl_stroke_line(screen_surface, l->begin.x, l->begin.y, l->end.x,
+            nk_retro_stroke_line(screen_surface, l->begin.x, l->begin.y, l->end.x,
                 l->end.y, l->line_thickness, l->color);
         } break;
         case NK_COMMAND_RECT: {
             const struct nk_command_rect *r = (const struct nk_command_rect *)cmd;
-            nk_sdl_stroke_rect(screen_surface, r->x, r->y, r->w, r->h,
+            nk_retro_stroke_rect(screen_surface, r->x, r->y, r->w, r->h,
                 (unsigned short)r->rounding, r->line_thickness, r->color);
         } break;
         case NK_COMMAND_RECT_FILLED: {
             const struct nk_command_rect_filled *r = (const struct nk_command_rect_filled *)cmd;
-            nk_sdl_fill_rect(screen_surface, r->x, r->y, r->w, r->h,
+            nk_retro_fill_rect(screen_surface, r->x, r->y, r->w, r->h,
                 (unsigned short)r->rounding, r->color);
         } break;
         case NK_COMMAND_CIRCLE: {
             const struct nk_command_circle *c = (const struct nk_command_circle *)cmd;
-            nk_sdl_stroke_circle(screen_surface, c->x, c->y, c->w, c->h, c->line_thickness, c->color);
+            nk_retro_stroke_circle(screen_surface, c->x, c->y, c->w, c->h, c->line_thickness, c->color);
         } break;
         case NK_COMMAND_CIRCLE_FILLED: {
             const struct nk_command_circle_filled *c = (const struct nk_command_circle_filled *)cmd;
-            nk_sdl_fill_circle(screen_surface, c->x, c->y, c->w, c->h, c->color);
+            nk_retro_fill_circle(screen_surface, c->x, c->y, c->w, c->h, c->color);
         } break;
         case NK_COMMAND_TRIANGLE: {
             const struct nk_command_triangle*t = (const struct nk_command_triangle*)cmd;
-            nk_sdl_stroke_triangle(screen_surface, t->a.x, t->a.y, t->b.x, t->b.y,
+            nk_retro_stroke_triangle(screen_surface, t->a.x, t->a.y, t->b.x, t->b.y,
                 t->c.x, t->c.y, t->line_thickness, t->color);
         } break;
         case NK_COMMAND_TRIANGLE_FILLED: {
             const struct nk_command_triangle_filled *t = (const struct nk_command_triangle_filled *)cmd;
-            nk_sdl_fill_triangle(screen_surface, t->a.x, t->a.y, t->b.x, t->b.y, t->c.x, t->c.y, t->color);
+            nk_retro_fill_triangle(screen_surface, t->a.x, t->a.y, t->b.x, t->b.y, t->c.x, t->c.y, t->color);
         } break;
         case NK_COMMAND_POLYGON: {
             const struct nk_command_polygon *p =(const struct nk_command_polygon*)cmd;
-            nk_sdl_stroke_polygon(screen_surface, p->points, p->point_count, p->line_thickness,p->color);
+            nk_retro_stroke_polygon(screen_surface, p->points, p->point_count, p->line_thickness,p->color);
         } break;
         case NK_COMMAND_POLYGON_FILLED: {
             const struct nk_command_polygon_filled *p = (const struct nk_command_polygon_filled *)cmd;
-            nk_sdl_fill_polygon(screen_surface, p->points, p->point_count, p->color);
+            nk_retro_fill_polygon(screen_surface, p->points, p->point_count, p->color);
         } break;
         case NK_COMMAND_POLYLINE: {
             const struct nk_command_polyline *p = (const struct nk_command_polyline *)cmd;
-            nk_sdl_stroke_polyline(screen_surface, p->points, p->point_count, p->line_thickness, p->color);
+            nk_retro_stroke_polyline(screen_surface, p->points, p->point_count, p->line_thickness, p->color);
         } break;
         case NK_COMMAND_TEXT: {
             const struct nk_command_text *t = (const struct nk_command_text*)cmd;
-            nk_sdl_draw_text(screen_surface, t->x, t->y, t->w, t->h,
+            nk_retro_draw_text(screen_surface, t->x, t->y, t->w, t->h,
                 (const char*)t->string, t->length,
-                (nk_sdl_Font*)t->font->userdata.ptr,
+                (nk_retro_Font*)t->font->userdata.ptr,
                 t->background, t->foreground);
         } break;
         case NK_COMMAND_CURVE: {
             const struct nk_command_curve *q = (const struct nk_command_curve *)cmd;
-            nk_sdl_stroke_curve(screen_surface, q->begin, q->ctrl[0], q->ctrl[1],
+            nk_retro_stroke_curve(screen_surface, q->begin, q->ctrl[0], q->ctrl[1],
                 q->end, 22, q->line_thickness, q->color);
         } break;
         case NK_COMMAND_RECT_MULTI_COLOR: {
             const struct nk_command_rect_multi_color *r = (const struct nk_command_rect_multi_color *)cmd;
-            nk_sdl_fill_rect_multi_color(screen_surface, r->x, r->y, r->w, r->h, r->left, r->top, r->right, r->bottom);
+            nk_retro_fill_rect_multi_color(screen_surface, r->x, r->y, r->w, r->h, r->left, r->top, r->right, r->bottom);
         } break;
         case NK_COMMAND_IMAGE:
         case NK_COMMAND_ARC:
@@ -361,28 +360,28 @@ nk_sdl_render(struct nk_color clear)
         default: break;
         }
     }
-    nk_sdl_blit(sdl.screen_surface);
+    nk_retro_blit(sdl.screen_surface);
     nk_clear(&sdl.ctx);
 
 }
 
 static void
-nk_sdl_clipbard_paste(nk_handle usr, struct nk_text_edit *edit)
+nk_retro_clipbard_paste(nk_handle usr, struct nk_text_edit *edit)
 {
     /* Not supported in SDL 1.2. Use platform specific code.  */
 }
 
 static void
-nk_sdl_clipbard_copy(nk_handle usr, const char *text, int len)
+nk_retro_clipbard_copy(nk_handle usr, const char *text, int len)
 {
     /* Not supported in SDL 1.2. Use platform specific code.  */
 }
 
-nk_sdl_Font*
-nk_sdlfont_create(const char *name, int size)
+nk_retro_Font*
+nk_retrofont_create(const char *name, int size)
 {
 
-   nk_sdl_Font *font = (nk_sdl_Font*)calloc(1, sizeof(nk_sdl_Font));
+   nk_retro_Font *font = (nk_retro_Font*)calloc(1, sizeof(nk_retro_Font));
     font->width = 8; /* Default in  the RSDL_gfx library */
     font->height = 8; /* Default in  the RSDL_gfx library */
     if (!font)
@@ -392,7 +391,7 @@ nk_sdlfont_create(const char *name, int size)
     return font;
 }
 void
-nk_sdlfont_del(nk_sdl_Font *font)
+nk_retrofont_del(nk_retro_Font *font)
 {
     if(!font) return;
 
@@ -400,9 +399,9 @@ nk_sdlfont_del(nk_sdl_Font *font)
 }
 
 static float
-nk_sdl_get_text_width(nk_handle handle, float height, const char *text, int len)
+nk_retro_get_text_width(nk_handle handle, float height, const char *text, int len)
 {
-    nk_sdl_Font *font = (nk_sdl_Font*)handle.ptr;
+    nk_retro_Font *font = (nk_retro_Font*)handle.ptr;
  
     if(!font || !text)
         return 0;
@@ -410,35 +409,35 @@ nk_sdl_get_text_width(nk_handle handle, float height, const char *text, int len)
 }
 
 NK_API struct nk_context*
-nk_sdl_init(nk_sdl_Font *rsdlfont,RSDL_Surface *screen_surface,unsigned int w, unsigned int h)
+nk_retro_init(nk_retro_Font *rsdlfont,RSDL_Surface *screen_surface,unsigned int w, unsigned int h)
 {
     struct nk_user_font *font=&rsdlfont->handle;
 
     font->userdata = nk_handle_ptr(rsdlfont);
     font->height = (float)rsdlfont->height;
-    font->width = nk_sdl_get_text_width;
+    font->width = nk_retro_get_text_width;
 
     sdl.screen_surface = screen_surface;
 
     nk_init_default(&sdl.ctx, font);
-    sdl.ctx.clip.copy = nk_sdl_clipbard_copy;
-    sdl.ctx.clip.paste = nk_sdl_clipbard_paste;
+    sdl.ctx.clip.copy = nk_retro_clipbard_copy;
+    sdl.ctx.clip.paste = nk_retro_clipbard_paste;
     sdl.ctx.clip.userdata = nk_handle_ptr(0);
     return &sdl.ctx;
 }
 
 NK_API void
-nk_sdl_set_font(nk_sdl_Font *xfont)
+nk_retro_set_font(nk_retro_Font *xfont)
 {
     struct nk_user_font *font = &xfont->handle;
     font->userdata = nk_handle_ptr(xfont);
     font->height = (float)xfont->height;
-    font->width = nk_sdl_get_text_width;
+    font->width = nk_retro_get_text_width;
     nk_style_set_font(&sdl.ctx, font);
 }
 
 NK_API void
-nk_sdl_handle_event(int *evt)
+nk_retro_handle_event(int *evt)
 {
 #if 0
 #FIXME LIBRETRO done the event stuff here and not in app.c
@@ -516,7 +515,7 @@ nk_sdl_handle_event(int *evt)
 }
 
 NK_API void
-nk_sdl_shutdown(void)
+nk_retro_shutdown(void)
 {
     nk_free(&sdl.ctx);
 }

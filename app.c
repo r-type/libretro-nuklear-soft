@@ -43,7 +43,7 @@ static int mbt[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 #include "nuklear.h"
 #include "nuklear_retro_soft.h"
 
-// SDL surface (implementation from RSDL_wrapper)
+// RSDL surface (implementation from RSDL_wrapper)
 static RSDL_Surface *screen_surface;
 
 #ifdef M16B
@@ -66,7 +66,7 @@ struct nk_color background;
 /* GUI */
 struct nk_context *ctx;
 
-static nk_sdl_Font *RSDL_font;
+static nk_retro_Font *RSDL_font;
 
 /* ===============================================================
  *
@@ -155,14 +155,14 @@ int app_init()
 
     retroscreen=screen_surface->pixels;
 
-    RSDL_font = (nk_sdl_Font*)calloc(1, sizeof(nk_sdl_Font));
+    RSDL_font = (nk_retro_Font*)calloc(1, sizeof(nk_retro_Font));
     RSDL_font->width = 8; /* Default in  the RSDL_gfx library */
     RSDL_font->height = 8; /* Default in  the RSDL_gfx library */
     if (!RSDL_font)
         return -1;
 
     /* GUI */
-    ctx = nk_sdl_init(RSDL_font,screen_surface,rwidth,rheight);
+    ctx = nk_retro_init(RSDL_font,screen_surface,rwidth,rheight);
 
     /* style.c */
     /*set_style(ctx, THEME_WHITE);*/
@@ -196,7 +196,7 @@ int app_free()
 {
 //FIXME: memory leak here
     free(RSDL_font);
-    nk_sdl_shutdown();
+    nk_retro_shutdown();
     Retro_FreeSurface(screen_surface);
 
  return 0;
@@ -477,8 +477,13 @@ holdleft=0;
 
 int app_event(){
 
+	int evt;
+
 	nk_input_begin(ctx);
 	Retro_PollEvent();
+
+        nk_retro_handle_event(&evt);
+
 	static int lmx=0,lmy=0;
 	if(gmx!=lmx || lmy!=gmy){
 		nk_input_motion(ctx, gmx, gmy);
@@ -506,8 +511,9 @@ app_main()
 
         /* Draw */
        // nk_color_fv(bg, background);
-        nk_sdl_render(nk_rgb(30,30,30));
+        nk_retro_render(nk_rgb(30,30,30));
 
+	//FIXME draw only in fullscreen or mouse grabbed or when joypad emulate mouse
 	draw_cross(gmx,gmy);
 
     return 0;

@@ -26,10 +26,10 @@ static retro_environment_t environ_cb;
 
 retro_input_poll_t input_poll_cb;
 retro_input_state_t input_state_cb;
+
 extern int app_init(void);
 extern int app_free(void);
-extern int app_main(void);
-extern int app_event(void);
+extern int app_frame(void);
 
 void context_reset(void)
 {
