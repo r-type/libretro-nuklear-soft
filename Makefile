@@ -157,9 +157,9 @@ else
 	CFLAGS += -std=gnu99
 endif
 
-INCLUDES += -I. -I./sdl_wrapper -I./nuklear
+INCLUDES += -I. -I./retro -I./nuklear
 
-OBJECTS := libretro.o  app.o sdl_wrapper/SDL_gfxPrimitives.o sdl_wrapper/retro_surface.o 
+OBJECTS := libretro.o  app.o retro/SDL_gfxPrimitives.o retro/retro_surface.o 
 CFLAGS += -Wall -pedantic $(fpic)
 
 

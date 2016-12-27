@@ -202,10 +202,7 @@ void retro_run(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       update_variables();
 
-
-   app_event();
-
-   app_main();
+   app_frame();
 
    frame_count++;
 

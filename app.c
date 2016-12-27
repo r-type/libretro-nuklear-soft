@@ -513,3 +513,12 @@ app_main()
     return 0;
 }
 
+int app_frame(){
+
+   	app_event();
+
+   	app_main();
+
+    return 0;
+
+}
