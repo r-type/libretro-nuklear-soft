@@ -3,6 +3,62 @@
 #include <stdio.h>
 #include <string.h>
 
+static const char *cross[] = {
+  "X                               ",
+  "XX                              ",
+  "X.X                             ",
+  "X..X                            ",
+  "X...X                           ",
+  "X....X                          ",
+  "X.....X                         ",
+  "X......X                        ",
+  "X.......X                       ",
+  "X........X                      ",
+  "X.....XXXXX                     ",
+  "X..X..X                         ",
+  "X.X X..X                        ",
+  "XX  X..X                        ",
+  "X    X..X                       ",
+  "     X..X                       ",
+  "      X..X                      ",
+  "      X..X                      ",
+  "       XX                       ",
+  "                                ",
+};
+
+#ifdef M16B
+void DrawPointBmp(unsigned short int *buffer,int x, int y, unsigned short int color)
+#else
+void DrawPointBmp(unsigned int *buffer,int x, int y, unsigned int color)
+#endif
+
+{
+   int idx;
+
+   idx=x+y*rwidth;
+   if(idx>=0 && idx<rwidth*rheight)
+   	buffer[idx]=color;	
+}
+
+void draw_cross(RSDL_Surface *surface,int x,int y) {
+
+	int i,j,idx;
+	int dx=32,dy=20;
+#ifdef M16B
+	unsigned short int col=0xffff;
+#else
+	unsigned int col=0xffffffff;
+#endif
+	for(j=y;j<y+dy;j++){
+		idx=0;
+		for(i=x;i<x+dx;i++){
+
+			if(cross[j-y][idx]=='.')DrawPointBmp(surface->pixels,i,j,col);
+			else if(cross[j-y][idx]=='X')DrawPointBmp(surface->pixels,i,j,0);
+			idx++;			
+		}
+	}
+}
 
 unsigned int Retro_MapRGB(RSDL_PixelFormat *a, int r, int g, int b){
 

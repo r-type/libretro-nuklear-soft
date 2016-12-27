@@ -49,6 +49,27 @@ NK_API void nk_retro_set_font(nk_retro_Font *font);
 #define NK_RSDL_MAX_POINTS 128
 #endif
 
+#include "libretro.h"
+
+extern retro_input_poll_t input_poll_cb;
+extern retro_input_state_t input_state_cb;
+
+static struct nk_retro_event {
+
+	char Key_Sate[512];
+	char old_Key_Sate[512];
+	int LSHIFTON;
+	int MOUSE_EMULATED; // 1 = joypad act as mouse in GUI
+	int MOUSE_PAS; // 4 = default
+	int MOUSE_RELATIVE; //0 = absolute
+	int gmx;
+	int gmy; // mouse
+	int mouse_wu;
+	int mouse_wd;
+	int slowdown;
+	int showpointer;
+}revent;
+
 struct nk_retro_Font {
     int width;
     int height;
@@ -60,7 +81,7 @@ static struct nk_retro {
     unsigned int width;
     unsigned int height;
     struct nk_context ctx;
-} sdl;
+} retro;
 
 static RSDL_Rect RSDL_clip_rect;
 
@@ -283,10 +304,10 @@ nk_retro_render(struct nk_color clear)
 {
     const struct nk_command *cmd;
 
-    RSDL_Surface *screen_surface = sdl.screen_surface;
+    RSDL_Surface *screen_surface = retro.screen_surface;
     nk_retro_clear(screen_surface, clear);
 
-    nk_foreach(cmd, &sdl.ctx)
+    nk_foreach(cmd, &retro.ctx)
     {
         switch (cmd->type) {
         case NK_COMMAND_NOP: break;
@@ -360,8 +381,11 @@ nk_retro_render(struct nk_color clear)
         default: break;
         }
     }
-    nk_retro_blit(sdl.screen_surface);
-    nk_clear(&sdl.ctx);
+    nk_retro_blit(retro.screen_surface);
+    nk_clear(&retro.ctx);
+	
+	//FIXME draw only in fullscreen or mouse grabbed or when joypad emulate mouse
+	if(revent.showpointer==1)draw_cross(retro.screen_surface,revent.gmx,revent.gmy);
 
 }
 
@@ -408,6 +432,22 @@ nk_retro_get_text_width(nk_handle handle, float height, const char *text, int le
     return len * font->width;
 }
 
+static void retro_init_event()
+{
+	revent.MOUSE_EMULATED=-1;
+	revent.MOUSE_PAS=4;
+	revent.MOUSE_RELATIVE=10;
+	revent.gmx=(rwidth/2)-1;
+	revent.gmy=(rheight/2)-1;
+	revent.mouse_wu=0;
+	revent.mouse_wd=0;
+	revent.slowdown=0;
+	memset(revent.Key_Sate,0,512);
+	memset(revent.old_Key_Sate ,0, sizeof(revent.old_Key_Sate));
+	revent.LSHIFTON=-1;
+	revent.showpointer=1;
+}
+
 NK_API struct nk_context*
 nk_retro_init(nk_retro_Font *rsdlfont,RSDL_Surface *screen_surface,unsigned int w, unsigned int h)
 {
@@ -417,13 +457,16 @@ nk_retro_init(nk_retro_Font *rsdlfont,RSDL_Surface *screen_surface,unsigned int 
     font->height = (float)rsdlfont->height;
     font->width = nk_retro_get_text_width;
 
-    sdl.screen_surface = screen_surface;
+    retro.screen_surface = screen_surface;
 
-    nk_init_default(&sdl.ctx, font);
-    sdl.ctx.clip.copy = nk_retro_clipbard_copy;
-    sdl.ctx.clip.paste = nk_retro_clipbard_paste;
-    sdl.ctx.clip.userdata = nk_handle_ptr(0);
-    return &sdl.ctx;
+    nk_init_default(&retro.ctx, font);
+    retro.ctx.clip.copy = nk_retro_clipbard_copy;
+    retro.ctx.clip.paste = nk_retro_clipbard_paste;
+    retro.ctx.clip.userdata = nk_handle_ptr(0);
+
+	retro_init_event();
+
+    return &retro.ctx;
 }
 
 NK_API void
@@ -433,7 +476,132 @@ nk_retro_set_font(nk_retro_Font *xfont)
     font->userdata = nk_handle_ptr(xfont);
     font->height = (float)xfont->height;
     font->width = nk_retro_get_text_width;
-    nk_style_set_font(&sdl.ctx, font);
+    nk_style_set_font(&retro.ctx, font);
+}
+
+static void retro_key(int key,int down)
+{
+	struct nk_context *ctx = &retro.ctx;
+	if(key<512);
+	else return;
+
+        if (key == RETROK_RSHIFT || key == RETROK_LSHIFT) nk_input_key(ctx, NK_KEY_SHIFT, down);
+        else if (key == RETROK_DELETE)    nk_input_key(ctx, NK_KEY_DEL, down);
+        else if (key == RETROK_RETURN)    nk_input_key(ctx, NK_KEY_ENTER, down);
+        else if (key == RETROK_TAB)       nk_input_key(ctx, NK_KEY_TAB, down);
+        else if (key == RETROK_LEFT)      nk_input_key(ctx, NK_KEY_LEFT, down);
+        else if (key == RETROK_RIGHT)     nk_input_key(ctx, NK_KEY_RIGHT, down);
+        else if (key == RETROK_UP)        nk_input_key(ctx, NK_KEY_UP, down);
+        else if (key == RETROK_DOWN)      nk_input_key(ctx, NK_KEY_DOWN, down);
+        else if (key == RETROK_BACKSPACE) nk_input_key(ctx, NK_KEY_BACKSPACE, down);
+        else if (key == RETROK_HOME)      nk_input_key(ctx, NK_KEY_TEXT_START, down);
+        else if (key == RETROK_END)       nk_input_key(ctx, NK_KEY_TEXT_END, down);
+        else if (key == RETROK_SPACE && !down) nk_input_char(ctx, ' ');
+
+        else if (key >= RETROK_0 && key <= RETROK_9) {
+                    nk_rune rune = '0' + key - RETROK_0;
+                    nk_input_unicode(ctx, rune);
+        }
+	else if (key >= RETROK_a && key <= RETROK_z) {
+                    nk_rune rune = 'a' + key - RETROK_a;
+                    rune = ((1 == revent.LSHIFTON) ? (nk_rune)nk_to_upper((int)rune):rune);
+                    nk_input_unicode(ctx, rune);
+        }
+}
+
+
+static void mousebut(int but,int down,int x,int y){
+
+	struct nk_context *ctx = &retro.ctx;
+
+ 	if(but==1)nk_input_button(ctx, NK_BUTTON_LEFT, x, y, down);
+ 	else if(but==2)nk_input_button(ctx, NK_BUTTON_RIGHT, x, y, down);
+ 	else if(but==3)nk_input_button(ctx, NK_BUTTON_MIDDLE, x, y, down);
+	else if(but==4)nk_input_scroll(ctx,(float)down);
+	//printf("but:%d %s (%d,%d)\n",but,down==1?"pressed":"released",x,y);
+}
+
+static void Process_key()
+{
+	int i;
+
+	for(i=0;i<320;i++)
+        	revent.Key_Sate[i]=input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0,i) ? 0x80: 0;
+   
+	if(memcmp( revent.Key_Sate,revent.old_Key_Sate , sizeof(revent.Key_Sate) ) )
+	 	for(i=0;i<320;i++)
+			if(revent.Key_Sate[i] && revent.Key_Sate[i]!=revent.old_Key_Sate[i]  )
+        	{
+	
+				if(i==RETROK_RSHIFT){
+					revent.LSHIFTON=-revent.LSHIFTON;
+					printf("Modifier shift pressed %d \n",revent.LSHIFTON); 
+					continue;
+				}
+/*
+				if(i==RETROK_F12){
+					//play_tape();
+					continue;
+				}
+
+				if(i==RETROK_RCTRL){
+					//CTRLON=-CTRLON;
+					printf("Modifier crtl pressed %d \n",CTRLON); 
+					continue;
+				}
+				if(i==RETROK_RSHIFT){
+					//SHITFON=-SHITFON;
+					printf("Modifier shift pressed %d \n",SHIFTON); 
+					continue;
+				}
+
+				if(i==RETROK_LALT){
+					//KBMOD=-KBMOD;
+					printf("Modifier alt pressed %d \n",KBMOD); 
+					continue;
+				}
+//printf("press: %d \n",i);
+*/
+				retro_key(i,1);
+	
+        	}	
+        	else if ( !revent.Key_Sate[i] && revent.Key_Sate[i]!=revent.old_Key_Sate[i]  )
+        	{
+				if(i==RETROK_LSHIFT){
+					revent.LSHIFTON=-revent.LSHIFTON;
+					printf("Modifier shift released %d \n",revent.LSHIFTON); 
+					continue;
+				}
+/*
+				if(i==RETROK_F12){
+      				//kbd_buf_feed("|tape\nrun\"\n^");
+					continue;
+				}
+
+				if(i==RETROK_RCTRL){
+					CTRLON=-CTRLON;
+					printf("Modifier crtl released %d \n",CTRLON); 
+					continue;
+				}
+				if(i==RETROK_RSHIFT){
+					SHIFTON=-SHIFTON;
+					printf("Modifier shift released %d \n",SHIFTON); 
+					continue;
+				}
+
+				if(i==RETROK_LALT){
+					KBMOD=-KBMOD;
+					printf("Modifier alt released %d \n",KBMOD); 
+					continue;
+				}
+//printf("release: %d \n",i);
+*/
+				retro_key(i,0);
+	
+        	}	
+
+	memcpy(revent.old_Key_Sate,revent.Key_Sate , sizeof(revent.Key_Sate) );
+
 }
 
 NK_API void
@@ -441,7 +609,7 @@ nk_retro_handle_event(int *evt)
 {
 #if 0
 #FIXME LIBRETRO done the event stuff here and not in app.c
-    struct nk_context *ctx = &sdl.ctx;
+    struct nk_context *ctx = &retro.ctx;
     if (evt->type == RSDL_VIDEORESIZE) {
         /* Do nothing */
     } else if (evt->type == RSDL_KEYUP || evt->type == RSDL_KEYDOWN) {
@@ -511,13 +679,163 @@ nk_retro_handle_event(int *evt)
     } else if (evt->type == RSDL_MOUSEMOTION) {
         nk_input_motion(ctx, evt->motion.x, evt->motion.y);
     }
+#else
+   struct nk_context *ctx = &retro.ctx;
+
+   input_poll_cb();
+
+   static int lmx=0,lmy=0;
+   static int mmbL=0,mmbR=0,mmbM=0;
+   static int mbt[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+   int mouse_l,mouse_m,mouse_r;
+
+   int16_t mouse_x=0,mouse_y=0;
+
+   Process_key();
+
+   int i=2;//TOGGLE: real mouse/ joypad emulate mouse 
+   if ( input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, i) && mbt[i]==0 )
+      mbt[i]=1;
+   else if ( mbt[i]==1 && ! input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, i) ){
+      mbt[i]=0;
+      revent.MOUSE_EMULATED=-revent.MOUSE_EMULATED;
+   }
+
+   revent.mouse_wu = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_WHEELUP);
+   revent.mouse_wd = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_WHEELDOWN);
+   if(revent.mouse_wu || revent.mouse_wd)mousebut(4,revent.mouse_wd?-1:1,0,0);
+
+   if(revent.MOUSE_EMULATED==1){
+
+      if(revent.slowdown>0)return 1;
+
+      mouse_l=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A);
+      mouse_r=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B);
+      mouse_m=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y);
+
+
+   }
+   else {
+   		mouse_l    = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
+   		mouse_r    = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT);
+   		mouse_m    = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_MIDDLE); 
+   }
+
+	//relative
+	if(revent.MOUSE_RELATIVE){
+
+   		if(revent.MOUSE_EMULATED==1){
+
+      		if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))mouse_x += revent.MOUSE_PAS;
+      		if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))mouse_x -= revent.MOUSE_PAS;
+      		if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))mouse_y += revent.MOUSE_PAS;
+      		if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))mouse_y -= revent.MOUSE_PAS;
+
+   		}
+   		else {
+
+   			mouse_x = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
+   			mouse_y = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
+
+   		}
+
+   		revent.gmx+=mouse_x;
+   		revent.gmy+=mouse_y;
+   		if(revent.gmx<0)revent.gmx=0;
+   		if(revent.gmx>rwidth-1)revent.gmx=rwidth-1;
+   		if(revent.gmy<0)revent.gmy=0;
+   		if(revent.gmy>rheight-1)revent.gmy=rheight-1;
+
+	}
+	else{
+
+		//absolute
+		//FIXME FULLSCREEN no pointer
+		int p_x = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_X);
+ 		int p_y = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_Y);
+
+ 		if(p_x!=0 && p_y!=0){
+			int px=(int)((p_x+0x7fff)*rwidth/0xffff);
+			int py=(int)((p_y+0x7fff)*rheight/0xffff);
+			//printf("px:%d py:%d (%d,%d)\n",p_x,p_y,px,py);
+			revent.gmx=px;
+			revent.gmy=py;
+
+#if defined(__ANDROID__) || defined(ANDROID)
+  			//mouse_l=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A);
+ 			//mouse_r=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B);
+
+			if(holdleft==0){
+				starthold=GetTicks();
+				holdleft=1;	
+			}
+			else if(holdleft==1){
+	
+				timehold=GetTicks()-starthold;
+	
+				if(timehold>250){
+					mouse_l=input_state_cb(0, RETRO_DEVICE_POINTER, 	0,RETRO_DEVICE_ID_POINTER_PRESSED);
+				}
+			}
+	
+			//mouse_l=input_state_cb(0, RETRO_DEVICE_POINTER, 0,RETRO_DEVICE_ID_POINTER_PRESSED);
+
+			//FIXME: mouse left button in scale widget.
+#endif
+
+ 		}
+
+	}
+
+    if(mmbL==0 && mouse_l){
+
+		mmbL=1;		
+		mousebut(1,1,revent.gmx,revent.gmy);
+    }
+    else if(mmbL==1 && !mouse_l) {
+#if defined(__ANDROID__) || defined(ANDROID)
+		holdleft=0;
+#endif
+		mmbL=0;
+		mousebut(1,0,revent.gmx,revent.gmy);
+    }
+
+    if(mmbR==0 && mouse_r){
+
+      	mmbR=1;
+		mousebut(2,1,revent.gmx,revent.gmy);		
+   	}
+   	else if(mmbR==1 && !mouse_r) {
+
+      	mmbR=0;
+		mousebut(2,0,revent.gmx,revent.gmy);
+   	}
+
+   	if(mmbM==0 && mouse_m){
+
+      	mmbM=1;
+		mousebut(3,1,revent.gmx,revent.gmy);		
+   	}
+   	else if(mmbM==1 && !mouse_m) {
+
+      	mmbM=0;
+		mousebut(3,0,revent.gmx,revent.gmy);
+   	}
+
+	if(revent.gmx!=lmx || lmy!=revent.gmy){
+		nk_input_motion(ctx, revent.gmx, revent.gmy);
+		//printf("mx:%d my:%d \n",gmx,gmy);
+	}
+	lmx=revent.gmx;lmy=revent.gmy;
+
 #endif
 }
 
 NK_API void
 nk_retro_shutdown(void)
 {
-    nk_free(&sdl.ctx);
+    nk_free(&retro.ctx);
 }
 
 

@@ -17,3 +17,11 @@
 #define PIXEL_TYPE unsigned short
 #define MPITCH 2
 #endif
+
+extern unsigned rwidth ,rheight;
+
+#ifdef M16B
+extern unsigned short int *retroscreen;
+#else
+extern unsigned int *retroscreen;
+#endif
