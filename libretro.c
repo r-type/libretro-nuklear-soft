@@ -6,13 +6,15 @@
 
 #include <libretro.h>
 
-#include "core.h"
+#include "libretro-core.h"
 
 unsigned rwidth  = BASE_WIDTH;
 unsigned rheight = BASE_HEIGHT;
-
-unsigned *retroscreen;
-
+#ifdef M16B
+unsigned short int *retroscreen;
+#else
+unsigned int *retroscreen;
+#endif
 float retro_fps = 60.0;
 
 retro_log_printf_t log_cb;
@@ -72,7 +74,7 @@ void retro_get_system_info(struct retro_system_info *info)
 {
    memset(info, 0, sizeof(*info));
    info->library_name     = "Nuklear Soft Libretro";
-   info->library_version  = "v1";
+   info->library_version  = "v1.18";
    info->need_fullpath    = false;
    info->valid_extensions = NULL; // Anything is fine, we don't care.
 }

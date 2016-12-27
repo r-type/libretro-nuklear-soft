@@ -2,7 +2,7 @@
 #ifndef NUKLEAR_RSDL_H
 #define NUKLEAR_RSDL_H
 
-#include "core.h"
+#include "libretro-core.h"
 
 //RETRO HACK
 //#warning just an SDL wrapper for use SDL surface/maprgba in the core.
@@ -108,39 +108,40 @@ static __inline__ unsigned RSDL_Swap32(unsigned x){
 }
 
 
-#ifdef LSB_FIRST
-
-#define RSDL_SwapLE16(X)	(X)
-#define RSDL_SwapLE32(X) (X)
-
-#define RSDL_SwapBE16(X) RSDL_Swap16(X)
-#define RSDL_SwapBE32(X) RSDL_Swap32(X)
-
-#else
-
+#ifdef MSB_FIRST
 #define RSDL_SwapLE16(X)	RSDL_Swap16(X)
-#define RSDL_SwapLE32(X) RSDL_Swap32(X)
+#define RSDL_SwapLE32(X)   RSDL_Swap32(X)
 
-#define RSDL_SwapBE16(X) (X)
-#define RSDL_SwapBE32(X) (X)
+#define RSDL_SwapBE16(X)   (X)
+#define RSDL_SwapBE32(X)   (X)
+#else
+#define RSDL_SwapLE16(X)	(X)
+#define RSDL_SwapLE32(X)   (X)
+
+#define RSDL_SwapBE16(X)   RSDL_Swap16(X)
+#define RSDL_SwapBE32(X)   RSDL_Swap32(X)
 
 #endif
 
 #define RSDL_LIL_ENDIAN	1234
 #define RSDL_BIG_ENDIAN	4321
 
-//RETRO HACK
-//FIXME: TODO LSB as default
-#ifdef LSB_FIRST
-#define RSDL_BYTEORDER RSDL_LIL_ENDIAN         
-#else    
+#ifdef MSB_FIRST
 #define RSDL_BYTEORDER RSDL_BIG_ENDIAN
+#else    
+#define RSDL_BYTEORDER RSDL_LIL_ENDIAN         
 #endif
 
+#ifdef __cplusplus
+typedef bool RSDL_bool; 
+#define RSDL_FALSE false
+#define RSDL_TRUE  true
+#else
 typedef enum {
 	RSDL_FALSE = 0,
 	RSDL_TRUE  = 1
 } RSDL_bool;
+#endif
 
 #define RSDL_MUSTLOCK(a) 0
 #define RSDL_LockSurface(a) 0

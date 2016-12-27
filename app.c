@@ -12,7 +12,7 @@
 
 #include <libretro.h>
 
-#include "core.h"
+#include "libretro-core.h"
 
 extern retro_input_poll_t input_poll_cb;
 extern retro_input_state_t input_state_cb;
@@ -20,7 +20,9 @@ extern retro_log_printf_t log_cb;
 
 extern unsigned rwidth ,rheight;
 
-#define MOUSE_RELATIVE 0 //0 = absolute
+int MOUSE_EMULATED=-1,MOUSE_PAS=4,slowdown=0;
+
+#define MOUSE_RELATIVE 10 //0 = absolute
 int gmx,gmy; // mouse
 int mouse_wu=0,mouse_wd=0;
 int LSHIFTON=-1;
@@ -28,9 +30,11 @@ int LSHIFTON=-1;
 char Key_Sate[512];
 char Key_Sate2[512];
 static char old_Key_Sate[512];
+static int mbt[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
+#define NK_INCLUDE_STANDARD_VARARGS
 #define NK_INCLUDE_DEFAULT_ALLOCATOR
 #define NK_IMPLEMENTATION
 
@@ -41,7 +45,12 @@ static char old_Key_Sate[512];
 
 // SDL surface (implementation from RSDL_wrapper)
 static RSDL_Surface *screen_surface;
+
+#ifdef M16B
+extern unsigned short int *retroscreen;
+#else
 extern unsigned int *retroscreen;
+#endif
 
 /* macros */
 
@@ -57,6 +66,8 @@ struct nk_color background;
 /* GUI */
 struct nk_context *ctx;
 
+static nk_sdl_Font *RSDL_font;
+
 /* ===============================================================
  *
  *                          EXAMPLE
@@ -67,30 +78,91 @@ struct nk_context *ctx;
 /* This are some code examples to provide a small overview of what can be
  * done with this library. To try out an example uncomment the include
  * and the corresponding function. */
-#define NO_EXAMPLE
+//#define NO_EXAMPLE
 
 #include "style.c"
-#include "calculator.c"
+
 #if !defined(EXAMPLE_CANVAS) && !defined(NO_EXAMPLE)
 #include "node_editor.c"
 #include "calculator.c"
 #include "overview.c"
 #endif
 
+static const char *cross[] = {
+  "X                               ",
+  "XX                              ",
+  "X.X                             ",
+  "X..X                            ",
+  "X...X                           ",
+  "X....X                          ",
+  "X.....X                         ",
+  "X......X                        ",
+  "X.......X                       ",
+  "X........X                      ",
+  "X.....XXXXX                     ",
+  "X..X..X                         ",
+  "X.X X..X                        ",
+  "XX  X..X                        ",
+  "X    X..X                       ",
+  "     X..X                       ",
+  "      X..X                      ",
+  "      X..X                      ",
+  "       XX                       ",
+  "                                ",
+};
+
+#ifdef M16B
+void DrawPointBmp(unsigned short int *buffer,int x, int y, unsigned short int color)
+#else
+void DrawPointBmp(unsigned int *buffer,int x, int y, unsigned int color)
+#endif
+
+{
+   int idx;
+
+   idx=x+y*rwidth;
+   if(idx>=0 && idx<rwidth*rheight)
+   	buffer[idx]=color;	
+}
+
+void draw_cross(int x,int y) {
+
+	int i,j,idx;
+	int dx=32,dy=20;
+#ifdef M16B
+	unsigned short int col=0xffff;
+#else
+	unsigned int col=0xffffffff;
+#endif
+	for(j=y;j<y+dy;j++){
+		idx=0;
+		for(i=x;i<x+dx;i++){
+
+			if(cross[j-y][idx]=='.')DrawPointBmp(retroscreen,i,j,col);
+			else if(cross[j-y][idx]=='X')DrawPointBmp(retroscreen,i,j,0);
+			idx++;			
+		}
+	}
+}
+
 int app_init()
 {
 #ifdef M16B
     screen_surface=Retro_CreateRGBSurface16(rwidth,rheight,16,0,0,0,0);
-
-    //retroscreen=screen_surface->pixels;
 #else
     screen_surface=Retro_CreateRGBSurface32(rwidth,rheight,32,0,0,0,0);
 #endif
 
     retroscreen=screen_surface->pixels;
 
+    RSDL_font = (nk_sdl_Font*)calloc(1, sizeof(nk_sdl_Font));
+    RSDL_font->width = 8; /* Default in  the RSDL_gfx library */
+    RSDL_font->height = 8; /* Default in  the RSDL_gfx library */
+    if (!RSDL_font)
+        return -1;
+
     /* GUI */
-    ctx = nk_sdl_init(screen_surface);
+    ctx = nk_sdl_init(RSDL_font,screen_surface,rwidth,rheight);
 
     /* style.c */
     /*set_style(ctx, THEME_WHITE);*/
@@ -123,7 +195,7 @@ int app_init()
 int app_free()
 {
 //FIXME: memory leak here
-
+    free(RSDL_font);
     nk_sdl_shutdown();
     Retro_FreeSurface(screen_surface);
 
@@ -269,18 +341,51 @@ int Retro_PollEvent()
 
    Process_key();
 
+   int i=2;//TOGGLE: real mouse/ joypad emulate mouse 
+   if ( input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, i) && mbt[i]==0 )
+      mbt[i]=1;
+   else if ( mbt[i]==1 && ! input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, i) ){
+      mbt[i]=0;
+      MOUSE_EMULATED=-MOUSE_EMULATED;
+   }
+
    mouse_wu = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_WHEELUP);
    mouse_wd = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_WHEELDOWN);
    if(mouse_wu || mouse_wd)mousebut(4,mouse_wd?-1:1,0,0);
 
+if(MOUSE_EMULATED==1){
+
+      if(slowdown>0)return 1;
+
+      mouse_l=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A);
+      mouse_r=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B);
+      mouse_m=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y);
+
+
+}
+else {
    mouse_l    = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
    mouse_r    = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT);
    mouse_m    = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_MIDDLE); 
+}
 
 //relative
 if(MOUSE_RELATIVE){
+
+   if(MOUSE_EMULATED==1){
+
+      if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))mouse_x += MOUSE_PAS;
+      if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))mouse_x -= MOUSE_PAS;
+      if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))mouse_y += MOUSE_PAS;
+      if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))mouse_y -= MOUSE_PAS;
+
+   }
+   else {
+
    mouse_x = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
    mouse_y = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
+
+   }
 
    gmx+=mouse_x;
    gmy+=mouse_y;
@@ -303,6 +408,29 @@ else{
 	//printf("px:%d py:%d (%d,%d)\n",p_x,p_y,px,py);
 	gmx=px;
 	gmy=py;
+
+#if defined(__ANDROID__) || defined(ANDROID)
+  	//mouse_l=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A);
+ 	//mouse_r=input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B);
+
+	if(holdleft==0){
+		starthold=GetTicks();
+		holdleft=1;	
+	}
+	else if(holdleft==1){
+	
+		timehold=GetTicks()-starthold;
+	
+		if(timehold>250){
+			mouse_l=input_state_cb(0, RETRO_DEVICE_POINTER, 	0,RETRO_DEVICE_ID_POINTER_PRESSED);
+		}
+	}
+	
+	//mouse_l=input_state_cb(0, RETRO_DEVICE_POINTER, 0,RETRO_DEVICE_ID_POINTER_PRESSED);
+
+	//FIXME: mouse left button in scale widget.
+#endif
+
  }
 
 }
@@ -314,7 +442,9 @@ else{
 
    }
    else if(mmbL==1 && !mouse_l) {
-
+#if defined(__ANDROID__) || defined(ANDROID)
+holdleft=0;
+#endif
 	mmbL=0;
 	mousebut(1,0,gmx,gmy);
    }
@@ -364,7 +494,6 @@ int
 app_main()
 {
 
-calculator(ctx);
         /* -------------- EXAMPLES ---------------- */
 	/* uncomment here and corresponding header  */
 	/* to enable demo example		    */
@@ -379,6 +508,7 @@ calculator(ctx);
        // nk_color_fv(bg, background);
         nk_sdl_render(nk_rgb(30,30,30));
 
+	draw_cross(gmx,gmy);
 
     return 0;
 }

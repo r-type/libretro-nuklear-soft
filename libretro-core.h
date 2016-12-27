@@ -8,7 +8,7 @@
 #define M16B
 #endif
 
-//#undef M16B
+#undef M16B
 
 #ifndef M16B
 #define PIXEL_TYPE unsigned
