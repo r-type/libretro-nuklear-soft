@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+
 unsigned int Retro_MapRGB(RSDL_PixelFormat *a, int r, int g, int b){
 
 	return (r >> a->Rloss) << a->Rshift
@@ -235,12 +236,12 @@ printf("create surface RGB565 libretro\n");
    bitmp->format->BitsPerPixel = 16;
    bitmp->format->BytesPerPixel = 2;
    bitmp->format->Rloss=3;
-   bitmp->format->Gloss=3;
+   bitmp->format->Gloss=2;
    bitmp->format->Bloss=3;
    bitmp->format->Aloss=0;
 
    bitmp->format->Rshift=11;
-   bitmp->format->Gshift=6;
+   bitmp->format->Gshift=5;
    bitmp->format->Bshift=0;
    bitmp->format->Ashift=0;
 

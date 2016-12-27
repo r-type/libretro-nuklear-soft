@@ -220,7 +220,10 @@ nk_sdl_draw_text(RSDL_Surface *surface, short x, short y, unsigned short w, unsi
     for (i = 0; i < len; i++) {
         //characterRGBA(surface, x, y, text[i], cfg.r, cfg.g, cfg.b, cfg.a);
 #ifdef M16B
-	Retro_Draw_char(surface,  x,  y,  text[i],  1, 1,/*cfg.a<<8|*/cfg.r<<8|cfg.g<<3|cfg.b>>3, /*cbg.a<<24|*/cbg.r<<8|cbg.g<<3|cbg.b>>3);
+
+	Retro_Draw_char(surface,  x,  y,  text[i],  1, 1,cfg.r<<8|cfg.g<<3|cfg.b>>3,0);
+
+//	Retro_Draw_char(surface,  x,  y,  text[i],  1, 1,/*cfg.a<<8|*/cfg.r<<8|cfg.g<<3|cfg.b>>3, /*cbg.a<<24|*/cbg.r<<8|cbg.g<<3|cbg.b>>3);
 #else
 	Retro_Draw_char(surface,  x,  y,  text[i],  1, 1,cfg.a<<24|cfg.r<<16|cfg.g<<8|cfg.b, cbg.a<<24|cbg.r<<16|cbg.g<<8|cbg.b);
 #endif
@@ -392,8 +395,7 @@ void
 nk_sdlfont_del(nk_sdl_Font *font)
 {
     if(!font) return;
-    //DeleteObject(font->handle);
-    //DeleteDC(font->dc);
+
     free(font);
 }
 
@@ -416,13 +418,6 @@ nk_sdl_init(nk_sdl_Font *rsdlfont,RSDL_Surface *screen_surface,unsigned int w, u
     font->height = (float)rsdlfont->height;
     font->width = nk_sdl_get_text_width;
 
-//RSDL_font
-/*
-    font.userdata = nk_handle_ptr(RSDL_font);
-    font.height = (float)RSDL_font->height;
-    font.width = nk_sdl_get_text_width;
-    nk_style_set_font(&sdl.ctx, &font);
-*/
     sdl.screen_surface = screen_surface;
 
     nk_init_default(&sdl.ctx, font);
@@ -446,6 +441,7 @@ NK_API void
 nk_sdl_handle_event(int *evt)
 {
 #if 0
+#FIXME LIBRETRO done the event stuff here and not in app.c
     struct nk_context *ctx = &sdl.ctx;
     if (evt->type == RSDL_VIDEORESIZE) {
         /* Do nothing */
@@ -522,7 +518,6 @@ nk_sdl_handle_event(int *evt)
 NK_API void
 nk_sdl_shutdown(void)
 {
-    //free(RSDL_font);
     nk_free(&sdl.ctx);
 }
 
