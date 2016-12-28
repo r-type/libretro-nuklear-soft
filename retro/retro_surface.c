@@ -27,9 +27,9 @@ static const char *cross[] = {
 };
 
 #ifdef M16B
-void DrawPointBmp(unsigned short int *buffer,int x, int y, unsigned short int color)
+void DrawPointBmp(unsigned short int *buffer,int x, int y, unsigned short int color,int rwidth,int rheight)
 #else
-void DrawPointBmp(unsigned int *buffer,int x, int y, unsigned int color)
+void DrawPointBmp(unsigned int *buffer,int x, int y, unsigned int color,int rwidth,int rheight)
 #endif
 
 {
@@ -49,12 +49,15 @@ void draw_cross(RSDL_Surface *surface,int x,int y) {
 #else
 	unsigned int col=0xffffffff;
 #endif
+	int w=surface->w;
+	int h=surface->h;
+
 	for(j=y;j<y+dy;j++){
 		idx=0;
 		for(i=x;i<x+dx;i++){
 
-			if(cross[j-y][idx]=='.')DrawPointBmp(surface->pixels,i,j,col);
-			else if(cross[j-y][idx]=='X')DrawPointBmp(surface->pixels,i,j,0);
+			if(cross[j-y][idx]=='.')DrawPointBmp(surface->pixels,i,j,col,w,h);
+			else if(cross[j-y][idx]=='X')DrawPointBmp(surface->pixels,i,j,0,w,h);
 			idx++;			
 		}
 	}

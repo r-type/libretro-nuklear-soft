@@ -113,7 +113,7 @@ int app_event()
 	int evt;
 
 	nk_input_begin(ctx);
-	nk_retro_handle_event(&evt);
+	nk_retro_handle_event(&evt,1);
 	nk_input_end(ctx);
 
  return 0;

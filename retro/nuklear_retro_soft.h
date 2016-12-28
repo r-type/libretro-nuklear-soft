@@ -17,15 +17,17 @@
 #include "RSDL_wrapper.h"
 
 typedef struct nk_retro_Font nk_retro_Font;
+typedef struct nk_retro_event nk_retro_event;
 
 NK_API struct nk_context*   nk_retro_init(nk_retro_Font *font,RSDL_Surface *screen_surface ,unsigned int width, unsigned int height);
-NK_API void                 nk_retro_handle_event(int *evt);
+NK_API void                 nk_retro_handle_event(int *evt,int poll);
 NK_API void                 nk_retro_render(struct nk_color clear);
 NK_API void                 nk_retro_shutdown(void);
 
 NK_API nk_retro_Font* nk_retrofont_create(const char *name, int size);
 NK_API void nk_retrofont_del(nk_retro_Font *font);
 NK_API void nk_retro_set_font(nk_retro_Font *font);
+NK_API struct nk_retro_event* nk_retro_event_ptr();
 #endif
 /*
  * ==============================================================
@@ -54,7 +56,7 @@ NK_API void nk_retro_set_font(nk_retro_Font *font);
 extern retro_input_poll_t input_poll_cb;
 extern retro_input_state_t input_state_cb;
 
-static struct nk_retro_event {
+struct nk_retro_event {
 
 	char Key_Sate[512];
 	char old_Key_Sate[512];
@@ -68,7 +70,9 @@ static struct nk_retro_event {
 	int mouse_wd;
 	int slowdown;
 	int showpointer;
-}revent;
+};
+
+static struct nk_retro_event revent;
 
 struct nk_retro_Font {
     int width;
@@ -437,8 +441,8 @@ static void retro_init_event()
 	revent.MOUSE_EMULATED=-1;
 	revent.MOUSE_PAS=4;
 	revent.MOUSE_RELATIVE=10;
-	revent.gmx=(rwidth/2)-1;
-	revent.gmy=(rheight/2)-1;
+	revent.gmx=(retro.width/2)-1;
+	revent.gmy=(retro.height/2)-1;
 	revent.mouse_wu=0;
 	revent.mouse_wd=0;
 	revent.slowdown=0;
@@ -446,6 +450,14 @@ static void retro_init_event()
 	memset(revent.old_Key_Sate ,0, sizeof(revent.old_Key_Sate));
 	revent.LSHIFTON=-1;
 	revent.showpointer=1;
+}
+
+
+NK_API struct nk_retro_event* 
+nk_retro_event_ptr()
+{
+	nk_retro_event* event=&revent;
+	return event;
 }
 
 NK_API struct nk_context*
@@ -458,13 +470,15 @@ nk_retro_init(nk_retro_Font *rsdlfont,RSDL_Surface *screen_surface,unsigned int 
     font->width = nk_retro_get_text_width;
 
     retro.screen_surface = screen_surface;
+    retro.width=w;
+    retro.height=h;
 
     nk_init_default(&retro.ctx, font);
     retro.ctx.clip.copy = nk_retro_clipbard_copy;
     retro.ctx.clip.paste = nk_retro_clipbard_paste;
     retro.ctx.clip.userdata = nk_handle_ptr(0);
 
-	retro_init_event();
+    retro_init_event();
 
     return &retro.ctx;
 }
@@ -605,84 +619,11 @@ static void Process_key()
 }
 
 NK_API void
-nk_retro_handle_event(int *evt)
+nk_retro_handle_event(int *evt,int poll)
 {
-#if 0
-#FIXME LIBRETRO done the event stuff here and not in app.c
-    struct nk_context *ctx = &retro.ctx;
-    if (evt->type == RSDL_VIDEORESIZE) {
-        /* Do nothing */
-    } else if (evt->type == RSDL_KEYUP || evt->type == RSDL_KEYDOWN) {
-        /* key events */
-        int down = evt->type == RSDL_KEYDOWN;
-        SDLMod state = RSDL_GetModState();
-        SDLKey sym = evt->key.keysym.sym;
-
-        if (sym == SDLK_RSHIFT || sym == SDLK_LSHIFT) nk_input_key(ctx, NK_KEY_SHIFT, down);
-        else if (sym == SDLK_DELETE)    nk_input_key(ctx, NK_KEY_DEL, down);
-        else if (sym == SDLK_RETURN)    nk_input_key(ctx, NK_KEY_ENTER, down);
-        else if (sym == SDLK_TAB)       nk_input_key(ctx, NK_KEY_TAB, down);
-        else if (sym == SDLK_LEFT)      nk_input_key(ctx, NK_KEY_LEFT, down);
-        else if (sym == SDLK_RIGHT)     nk_input_key(ctx, NK_KEY_RIGHT, down);
-        else if (sym == SDLK_BACKSPACE) nk_input_key(ctx, NK_KEY_BACKSPACE, down);
-        else if (sym == SDLK_HOME)      nk_input_key(ctx, NK_KEY_TEXT_START, down);
-        else if (sym == SDLK_END)       nk_input_key(ctx, NK_KEY_TEXT_END, down);
-        else if (sym == SDLK_SPACE && !down) nk_input_char(ctx, ' ');
-        else {
-            if (sym == SDLK_c && state == SDLK_LCTRL)
-                nk_input_key(ctx, NK_KEY_COPY, down);
-            else if (sym == SDLK_v && state == SDLK_LCTRL)
-                nk_input_key(ctx, NK_KEY_PASTE, down);
-            else if (sym == SDLK_x && state == SDLK_LCTRL)
-                nk_input_key(ctx, NK_KEY_CUT, down);
-            else if (sym == SDLK_z && state == SDLK_LCTRL)
-                nk_input_key(ctx, NK_KEY_TEXT_UNDO, down);
-            else if (sym == SDLK_r && state == SDLK_LCTRL)
-                nk_input_key(ctx, NK_KEY_TEXT_REDO, down);
-            else if (sym == SDLK_LEFT && state == SDLK_LCTRL)
-                nk_input_key(ctx, NK_KEY_TEXT_WORD_LEFT, down);
-            else if (sym == SDLK_RIGHT && state == SDLK_LCTRL)
-                nk_input_key(ctx, NK_KEY_TEXT_WORD_RIGHT, down);
-            else if (sym == SDLK_b && state == SDLK_LCTRL)
-                nk_input_key(ctx, NK_KEY_TEXT_LINE_START, down);
-            else if (sym == SDLK_e && state == SDLK_LCTRL)
-                nk_input_key(ctx, NK_KEY_TEXT_LINE_END, down);
-            else if (!down) {
-                /* This demo does not provide full unicode support since the default
-                 * sdl1.2 font only allows runes in range 0-255. But this demo
-                 * already is quite limited and not really meant for full blown Apps
-                 * anyway. So I think ASCII support for Debugging Tools should be enough */
-                if (sym >= SDLK_0 && sym <= SDLK_9) {
-                    nk_rune rune = '0' + sym - SDLK_0;
-                    nk_input_unicode(ctx, rune);
-                } else if (sym >= SDLK_a && sym <= SDLK_z) {
-                    nk_rune rune = 'a' + sym - SDLK_a;
-                    rune = ((state == KMOD_LSHIFT) ? (nk_rune)nk_to_upper((int)rune):rune);
-                    nk_input_unicode(ctx, rune);
-                }
-            }
-        }
-    } else if (evt->type == RSDL_MOUSEBUTTONDOWN || evt->type == RSDL_MOUSEBUTTONUP) {
-        /* mouse button */
-        int down = evt->type == RSDL_MOUSEBUTTONDOWN;
-        const int x = evt->button.x, y = evt->button.y;
-        if (evt->button.button == RSDL_BUTTON_LEFT)
-            nk_input_button(ctx, NK_BUTTON_LEFT, x, y, down);
-        if (evt->button.button == RSDL_BUTTON_MIDDLE)
-            nk_input_button(ctx, NK_BUTTON_MIDDLE, x, y, down);
-        if (evt->button.button == RSDL_BUTTON_RIGHT)
-            nk_input_button(ctx, NK_BUTTON_RIGHT, x, y, down);
-        if (evt->button.button == RSDL_BUTTON_WHEELUP)
-            nk_input_scroll(ctx, 1.0f);
-        if (evt->button.button == RSDL_BUTTON_WHEELDOWN)
-            nk_input_scroll(ctx, -1.0f);
-    } else if (evt->type == RSDL_MOUSEMOTION) {
-        nk_input_motion(ctx, evt->motion.x, evt->motion.y);
-    }
-#else
    struct nk_context *ctx = &retro.ctx;
 
-   input_poll_cb();
+   if(poll)input_poll_cb();
 
    static int lmx=0,lmy=0;
    static int mmbL=0,mmbR=0,mmbM=0;
@@ -743,9 +684,9 @@ nk_retro_handle_event(int *evt)
    		revent.gmx+=mouse_x;
    		revent.gmy+=mouse_y;
    		if(revent.gmx<0)revent.gmx=0;
-   		if(revent.gmx>rwidth-1)revent.gmx=rwidth-1;
+   		if(revent.gmx>retro.width-1)revent.gmx=retro.width-1;
    		if(revent.gmy<0)revent.gmy=0;
-   		if(revent.gmy>rheight-1)revent.gmy=rheight-1;
+   		if(revent.gmy>retro.height-1)revent.gmy=retro.height-1;
 
 	}
 	else{
@@ -756,8 +697,8 @@ nk_retro_handle_event(int *evt)
  		int p_y = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_Y);
 
  		if(p_x!=0 && p_y!=0){
-			int px=(int)((p_x+0x7fff)*rwidth/0xffff);
-			int py=(int)((p_y+0x7fff)*rheight/0xffff);
+			int px=(int)((p_x+0x7fff)*retro.width/0xffff);
+			int py=(int)((p_y+0x7fff)*retro.height/0xffff);
 			//printf("px:%d py:%d (%d,%d)\n",p_x,p_y,px,py);
 			revent.gmx=px;
 			revent.gmy=py;
@@ -829,7 +770,6 @@ nk_retro_handle_event(int *evt)
 	}
 	lmx=revent.gmx;lmy=revent.gmy;
 
-#endif
 }
 
 NK_API void
